@@ -214,7 +214,7 @@ export default function FileUpload({
         </h4>
         <ol className="text-xs text-gray-400 space-y-1 list-decimal list-inside">
           <li>Go to your Letterboxd profile settings</li>
-          <li>Click on "Import & Export"</li>
+          <li>Click on "DATA"</li>
           <li>Click "Export your data"</li>
           <li>Download the "watched.csv" file</li>
           <li>Upload it here to visualize your movie map</li>
