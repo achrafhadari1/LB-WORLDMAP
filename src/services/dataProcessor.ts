@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import { searchMovie, getMovieDetails } from "./tmdb";
+import { mapCountryCode } from "../utils/countryMapping";
 
 export interface MovieData {
   date: string;
@@ -10,6 +11,7 @@ export interface MovieData {
 
 export interface ProcessedMovieData extends MovieData {
   tmdbId?: number;
+  posterPath?: string;
   productionCountries: string[];
 }
 
@@ -62,7 +64,10 @@ export class DataProcessor {
 
   async processMovieData(
     movies: MovieData[]
-  ): Promise<Map<string, CountryData>> {
+  ): Promise<{
+    countryData: Map<string, CountryData>;
+    allMovies: ProcessedMovieData[];
+  }> {
     const countryDataMap = new Map<string, CountryData>();
     const processedMovies: ProcessedMovieData[] = [];
 
@@ -87,8 +92,9 @@ export class DataProcessor {
           const processedMovie: ProcessedMovieData = {
             ...movie,
             tmdbId: tmdbMovie.id,
-            productionCountries: movieDetails.production_countries.map(
-              (c) => c.iso_3166_1
+            posterPath: movieDetails.poster_path,
+            productionCountries: movieDetails.production_countries.map((c) =>
+              mapCountryCode(c.iso_3166_1)
             ),
           };
 
@@ -97,7 +103,7 @@ export class DataProcessor {
           const primary = this.getOriginOrPrimaryCountry(movieDetails);
 
           if (primary) {
-            const mappedCountry = this.mapCountryCode(primary.iso_3166_1);
+            const mappedCountry = mapCountryCode(primary.iso_3166_1);
 
             if (!countryDataMap.has(mappedCountry)) {
               countryDataMap.set(mappedCountry, {
@@ -138,19 +144,21 @@ export class DataProcessor {
       });
     }
 
-    return countryDataMap;
+    return { countryData: countryDataMap, allMovies: processedMovies };
   }
 
   async processAllData(): Promise<Map<string, CountryData>> {
     const movies = await this.loadCSVData();
-    return await this.processMovieData(movies);
+    const result = await this.processMovieData(movies);
+    return result.countryData;
   }
 
   private getOriginOrPrimaryCountry(movieDetails: any) {
     if (movieDetails.origin_country && movieDetails.origin_country.length > 0) {
+      const mappedCountry = mapCountryCode(movieDetails.origin_country[0]);
       return {
-        iso_3166_1: movieDetails.origin_country[0],
-        name: movieDetails.origin_country[0],
+        iso_3166_1: mappedCountry,
+        name: mappedCountry,
       };
     }
 
@@ -162,28 +170,38 @@ export class DataProcessor {
   ): { iso_3166_1: string; name: string } | null {
     if (countries.length === 0) return null;
 
+    // Priority countries for selection
+    const priorityCountries = [
+      "IR",
+      "MA",
+      "SU",
+      "RU",
+      "JP",
+      "KR",
+      "CN",
+      "HK",
+      "IN",
+    ];
+
     for (const country of countries) {
-      if (country.iso_3166_1 === "IR") return country;
-      if (country.iso_3166_1 === "MA") return country;
-      if (country.iso_3166_1 === "SU" || country.iso_3166_1 === "RU")
-        return country;
-      if (country.iso_3166_1 === "JP") return country;
-      if (country.iso_3166_1 === "KR") return country;
-      if (country.iso_3166_1 === "CN") return country;
-      if (country.iso_3166_1 === "IN") return country;
+      const mappedCode = mapCountryCode(country.iso_3166_1);
+      if (
+        priorityCountries.includes(country.iso_3166_1) ||
+        priorityCountries.includes(mappedCode)
+      ) {
+        return {
+          iso_3166_1: mappedCode,
+          name: mappedCode,
+        };
+      }
     }
 
-    return countries[0];
-  }
-
-  private mapCountryCode(code: string): string {
-    const mappings: Record<string, string> = {
-      SU: "RU",
-      CS: "CZ",
-      YU: "RS",
-      DD: "DE",
+    // If no priority country found, return the first one with mapping applied
+    const firstCountry = countries[0];
+    const mappedCode = mapCountryCode(firstCountry.iso_3166_1);
+    return {
+      iso_3166_1: mappedCode,
+      name: mappedCode,
     };
-
-    return mappings[code] || code;
   }
 }

@@ -1,11 +1,13 @@
-const TMDB_API_KEY = '716d704f44b5a3eff07788f36a04aed0';
-const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
+const TMDB_API_KEY = "716d704f44b5a3eff07788f36a04aed0";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_IMAGE_BASE_URL = "https://image.tmdb.org/t/p";
 
 export interface TMDBSearchResult {
   id: number;
   title: string;
   release_date: string;
   overview: string;
+  poster_path?: string;
 }
 
 export interface TMDBMovieDetails {
@@ -13,6 +15,7 @@ export interface TMDBMovieDetails {
   title: string;
   release_date: string;
   overview: string;
+  poster_path?: string;
   production_countries: Array<{
     iso_3166_1: string;
     name: string;
@@ -24,7 +27,10 @@ export interface TMDBMovieDetails {
   }>;
 }
 
-export async function searchMovie(title: string, year?: number): Promise<TMDBSearchResult[]> {
+export async function searchMovie(
+  title: string,
+  year?: number
+): Promise<TMDBSearchResult[]> {
   try {
     const params = new URLSearchParams({
       api_key: TMDB_API_KEY,
@@ -32,11 +38,11 @@ export async function searchMovie(title: string, year?: number): Promise<TMDBSea
     });
 
     if (year) {
-      params.append('year', year.toString());
+      params.append("year", year.toString());
     }
 
     const response = await fetch(`${TMDB_BASE_URL}/search/movie?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`TMDB API error: ${response.status}`);
     }
@@ -49,14 +55,16 @@ export async function searchMovie(title: string, year?: number): Promise<TMDBSea
   }
 }
 
-export async function getMovieDetails(movieId: number): Promise<TMDBMovieDetails> {
+export async function getMovieDetails(
+  movieId: number
+): Promise<TMDBMovieDetails> {
   try {
     const params = new URLSearchParams({
       api_key: TMDB_API_KEY,
     });
 
     const response = await fetch(`${TMDB_BASE_URL}/movie/${movieId}?${params}`);
-    
+
     if (!response.ok) {
       throw new Error(`TMDB API error: ${response.status}`);
     }
@@ -67,4 +75,27 @@ export async function getMovieDetails(movieId: number): Promise<TMDBMovieDetails
     console.error(`Error fetching movie details for ID ${movieId}:`, error);
     throw error;
   }
+}
+
+/**
+ * Get the full URL for a TMDB poster image
+ * @param posterPath - The poster path from TMDB API
+ * @param size - Image size (w92, w154, w185, w342, w500, w780, original)
+ * @returns Full poster URL or null if no poster path
+ */
+export function getPosterUrl(
+  posterPath?: string,
+  size: string = "w342"
+): string | null {
+  if (!posterPath) return null;
+  return `${TMDB_IMAGE_BASE_URL}/${size}${posterPath}`;
+}
+
+/**
+ * Get Letterboxd URL for a movie using TMDB ID
+ * @param tmdbId - The TMDB movie ID
+ * @returns Letterboxd URL
+ */
+export function getLetterboxdUrl(tmdbId: number): string {
+  return `https://letterboxd.com/tmdb/${tmdbId}/`;
 }

@@ -3,7 +3,8 @@
 import React, { useState } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { scaleLinear } from "d3-scale";
-import { CountryData } from "@/services/dataProcessor";
+import { CountryData, ProcessedMovieData } from "@/services/dataProcessor";
+import MovieDrawer from "./MovieDrawer";
 
 // World map TopoJSON
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
@@ -173,20 +174,31 @@ const COUNTRY_NAME_TO_ISO: Record<string, string> = {
   Zimbabwe: "ZW",
 };
 
-interface TooltipData {
+interface HoverData {
   country: string;
   movieCount: number;
-  movies: Array<{ title: string; year: number }>;
   x: number;
   y: number;
 }
 
-interface WorldMapProps {
-  countryData: Map<string, CountryData> | null;
+interface DrawerData {
+  country: string;
+  movies: ProcessedMovieData[];
 }
 
-export default function WorldMap({ countryData }: WorldMapProps) {
-  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+interface WorldMapProps {
+  countryData: Map<string, CountryData> | null;
+  isEditMode?: boolean;
+  onEditMovie?: (movie: ProcessedMovieData) => void;
+}
+
+export default function WorldMap({
+  countryData,
+  isEditMode = false,
+  onEditMovie,
+}: WorldMapProps) {
+  const [hoverData, setHoverData] = useState<HoverData | null>(null);
+  const [drawerData, setDrawerData] = useState<DrawerData | null>(null);
 
   if (!countryData) {
     return (
@@ -208,25 +220,37 @@ export default function WorldMap({ countryData }: WorldMapProps) {
     const iso = COUNTRY_NAME_TO_ISO[name];
 
     if (!iso) {
-      setTooltip(null);
+      setHoverData(null);
       return;
     }
 
     const info = countryData.get(iso);
     if (!info) {
-      setTooltip(null);
+      setHoverData(null);
       return;
     }
 
-    setTooltip({
+    setHoverData({
       country: name,
       movieCount: info.movieCount,
-      movies: info.movies.map((m) => ({
-        title: m.name,
-        year: m.year,
-      })),
       x: e.clientX,
       y: e.clientY,
+    });
+  };
+
+  const handleClick = (geo: any) => {
+    const name: string = geo.properties.name;
+    const iso = COUNTRY_NAME_TO_ISO[name];
+
+    if (!iso) return;
+
+    const info = countryData.get(iso);
+    if (!info) return;
+
+    // Open drawer with movies
+    setDrawerData({
+      country: name,
+      movies: info.movies,
     });
   };
 
@@ -235,7 +259,8 @@ export default function WorldMap({ countryData }: WorldMapProps) {
       <div className="absolute top-8 left-8 text-white z-10">
         <h1 className="text-4xl font-bold mb-2">World Map</h1>
         <p className="text-gray-300">
-          Movies watched by primary production country
+          Movies watched by primary production country • Click a country to view
+          movies
         </p>
       </div>
 
@@ -269,7 +294,8 @@ export default function WorldMap({ countryData }: WorldMapProps) {
                     pressed: { outline: "none" },
                   }}
                   onMouseMove={(e) => handleMove(geo, e)}
-                  onMouseLeave={() => setTooltip(null)}
+                  onMouseLeave={() => setHoverData(null)}
+                  onClick={() => handleClick(geo)}
                 />
               );
             })
@@ -277,37 +303,29 @@ export default function WorldMap({ countryData }: WorldMapProps) {
         </Geographies>
       </ComposableMap>
 
-      {tooltip && (
+      {/* Simple hover tooltip */}
+      {hoverData && (
         <div
-          className="fixed z-50 bg-gray-800 text-white p-4 rounded-lg shadow-lg border border-gray-600 max-w-sm"
+          className="fixed bg-gray-800 text-white px-3 py-2 rounded-lg shadow-lg pointer-events-none z-50 text-sm"
           style={{
-            left: tooltip.x + 12,
-            top: tooltip.y - 10,
-            transform:
-              tooltip.x > window.innerWidth / 2 ? "translateX(-100%)" : "none",
-            pointerEvents: "none",
+            left: hoverData.x + 10,
+            top: hoverData.y - 10,
           }}
         >
-          <h3 className="text-lg font-bold mb-2">{tooltip.country}</h3>
-          <p className="text-green-400 mb-2">
-            {tooltip.movieCount} movie
-            {tooltip.movieCount !== 1 ? "s" : ""}
-          </p>
-
-          <div className="max-h-40 overflow-y-auto">
-            {tooltip.movies.slice(0, 10).map((m, i) => (
-              <div key={i} className="text-sm text-gray-300">
-                {m.title} ({m.year})
-              </div>
-            ))}
-            {tooltip.movies.length > 10 && (
-              <div className="text-sm text-gray-400 italic mt-1">
-                +{tooltip.movies.length - 10} more...
-              </div>
-            )}
-          </div>
+          <div className="font-medium">{hoverData.country}</div>
+          <div className="text-gray-300">{hoverData.movieCount} movies</div>
         </div>
       )}
+
+      {/* Movie drawer */}
+      <MovieDrawer
+        isOpen={!!drawerData}
+        onClose={() => setDrawerData(null)}
+        country={drawerData?.country || ""}
+        movies={drawerData?.movies || []}
+        onEditMovie={onEditMovie}
+        isEditMode={isEditMode}
+      />
     </div>
   );
 }
