@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, memo, useCallback } from "react";
 import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { scaleLinear } from "d3-scale";
 import { CountryData, ProcessedMovieData } from "@/services/dataProcessor";
@@ -63,7 +63,7 @@ interface WorldMapProps {
   onEditMovie?: (movie: ProcessedMovieData) => void;
 }
 
-export default function WorldMap({
+const WorldMap = memo(function WorldMap({
   countryData,
   isEditMode = false,
   onEditMovie,
@@ -86,44 +86,50 @@ export default function WorldMap({
     .domain([0, max])
     .range(["#204f41", "#22c55e"]);
 
-  const handleMove = (geo: any, e: React.MouseEvent) => {
-    const name: string = geo.properties.name;
-    const iso = COUNTRY_NAME_TO_ISO[name];
+  const handleMove = useCallback(
+    (geo: any, e: React.MouseEvent) => {
+      const name: string = geo.properties.name;
+      const iso = COUNTRY_NAME_TO_ISO[name];
 
-    if (!iso) {
-      setHoverData(null);
-      return;
-    }
+      if (!iso) {
+        setHoverData(null);
+        return;
+      }
 
-    const info = countryData.get(iso);
-    if (!info) {
-      setHoverData(null);
-      return;
-    }
+      const info = countryData?.get(iso);
+      if (!info) {
+        setHoverData(null);
+        return;
+      }
 
-    setHoverData({
-      country: name,
-      movieCount: info.movieCount,
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
+      setHoverData({
+        country: name,
+        movieCount: info.movieCount,
+        x: e.clientX,
+        y: e.clientY,
+      });
+    },
+    [countryData]
+  );
 
-  const handleClick = (geo: any) => {
-    const name: string = geo.properties.name;
-    const iso = COUNTRY_NAME_TO_ISO[name];
+  const handleClick = useCallback(
+    (geo: any) => {
+      const name: string = geo.properties.name;
+      const iso = COUNTRY_NAME_TO_ISO[name];
 
-    if (!iso) return;
+      if (!iso) return;
 
-    const info = countryData.get(iso);
-    if (!info) return;
+      const info = countryData?.get(iso);
+      if (!info) return;
 
-    // Open drawer with movies
-    setDrawerData({
-      country: name,
-      countryIso: iso,
-    });
-  };
+      // Open drawer with movies
+      setDrawerData({
+        country: name,
+        countryIso: iso,
+      });
+    },
+    [countryData]
+  );
 
   return (
     <div className="relative w-full h-screen bg-gray-900">
@@ -206,4 +212,6 @@ export default function WorldMap({
       )}
     </div>
   );
-}
+});
+
+export default WorldMap;
