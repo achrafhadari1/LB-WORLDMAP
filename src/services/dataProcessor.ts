@@ -7,6 +7,7 @@ export interface MovieData {
   name: string;
   year: number;
   letterboxdUri: string;
+  productionCountries?: string[]; // Optional for imported data with existing countries
 }
 
 export interface ProcessedMovieData extends MovieData {
@@ -62,9 +63,7 @@ export class DataProcessor {
     }
   }
 
-  async processMovieData(
-    movies: MovieData[]
-  ): Promise<{
+  async processMovieData(movies: MovieData[]): Promise<{
     countryData: Map<string, CountryData>;
     allMovies: ProcessedMovieData[];
   }> {
@@ -89,37 +88,53 @@ export class DataProcessor {
           const tmdbMovie = searchResults[0];
           const movieDetails = await getMovieDetails(tmdbMovie.id);
 
+          // Use provided production countries if available, otherwise use TMDB data
+          const productionCountries =
+            movie.productionCountries && movie.productionCountries.length > 0
+              ? movie.productionCountries
+              : movieDetails.production_countries.map((c) =>
+                  mapCountryCode(c.iso_3166_1)
+                );
+
           const processedMovie: ProcessedMovieData = {
             ...movie,
             tmdbId: tmdbMovie.id,
             posterPath: movieDetails.poster_path,
-            productionCountries: movieDetails.production_countries.map((c) =>
-              mapCountryCode(c.iso_3166_1)
-            ),
+            productionCountries: productionCountries,
           };
 
           processedMovies.push(processedMovie);
 
-          const primary = this.getOriginOrPrimaryCountry(movieDetails);
+          // For country mapping, use the first production country or determine primary from TMDB
+          let primaryCountry: string;
+          if (
+            movie.productionCountries &&
+            movie.productionCountries.length > 0
+          ) {
+            primaryCountry = movie.productionCountries[0];
+          } else {
+            const primary = this.getOriginOrPrimaryCountry(movieDetails);
+            primaryCountry = primary
+              ? mapCountryCode(primary.iso_3166_1)
+              : productionCountries[0];
+          }
 
-          if (primary) {
-            const mappedCountry = mapCountryCode(primary.iso_3166_1);
-
-            if (!countryDataMap.has(mappedCountry)) {
-              countryDataMap.set(mappedCountry, {
+          if (primaryCountry) {
+            if (!countryDataMap.has(primaryCountry)) {
+              countryDataMap.set(primaryCountry, {
                 movieCount: 0,
                 movies: [],
               });
             }
 
-            const countryData = countryDataMap.get(mappedCountry)!;
+            const countryData = countryDataMap.get(primaryCountry)!;
             countryData.movieCount++;
             countryData.movies.push(processedMovie);
           }
         } else {
           const processedMovie: ProcessedMovieData = {
             ...movie,
-            productionCountries: [],
+            productionCountries: movie.productionCountries || [],
           };
           processedMovies.push(processedMovie);
         }
@@ -130,7 +145,7 @@ export class DataProcessor {
 
         const processedMovie: ProcessedMovieData = {
           ...movie,
-          productionCountries: [],
+          productionCountries: movie.productionCountries || [],
         };
         processedMovies.push(processedMovie);
       }

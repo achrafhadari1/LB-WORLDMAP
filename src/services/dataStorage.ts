@@ -148,13 +148,31 @@ export class DataStorage {
       "Letterboxd URI",
       "Production Countries",
     ];
-    const rows = movies.map((movie) => [
-      movie.date || "",
-      `"${movie.name.replace(/"/g, '""')}"`, // Escape quotes in movie names
-      movie.year.toString(),
-      movie.letterboxdUri || "",
-      movie.productionCountries.join(";"),
-    ]);
+
+    // Load edits to apply them to the export
+    const edits = this.loadEdits();
+
+    const rows = movies.map((movie) => {
+      const movieId = `${movie.name}-${movie.year}`;
+      const edit = edits.find((e) => e.movieId === movieId);
+
+      // Use edited production countries if available
+      let productionCountries = [...movie.productionCountries];
+      if (edit) {
+        productionCountries = [
+          edit.newCountry,
+          ...movie.productionCountries.slice(1),
+        ];
+      }
+
+      return [
+        movie.date || "",
+        `"${movie.name.replace(/"/g, '""')}"`, // Escape quotes in movie names
+        movie.year.toString(),
+        movie.letterboxdUri || "",
+        productionCountries.join(";"),
+      ];
+    });
 
     return [headers, ...rows].map((row) => row.join(",")).join("\n");
   }

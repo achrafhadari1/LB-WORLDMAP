@@ -56,14 +56,14 @@ export default function Home() {
       // Combine original movies with custom movies
       const combinedMovies = [...processedMovies, ...customMovies];
 
-      const finalCountryData = applyEditsToData(
+      const { countryData: finalCountryData, updatedMovies } = applyEditsToData(
         processedCountryData,
         edits,
         combinedMovies
       );
 
       setCountryData(finalCountryData);
-      setAllMovies(combinedMovies);
+      setAllMovies(updatedMovies);
       setHasUploadedFile(true);
       setFileName(fileName);
       setIsLoading(false);
@@ -71,7 +71,7 @@ export default function Home() {
 
       // Save to storage
       DataStorage.saveData({
-        movies: combinedMovies,
+        movies: updatedMovies,
         countryData: finalCountryData,
         lastUpdated: new Date().toISOString(),
         originalFileName: fileName,
@@ -88,7 +88,10 @@ export default function Home() {
     originalData: Map<string, CountryData>,
     edits: UserEdit[],
     allMovies: ProcessedMovieData[]
-  ): Map<string, CountryData> => {
+  ): {
+    countryData: Map<string, CountryData>;
+    updatedMovies: ProcessedMovieData[];
+  } => {
     const newData = new Map<string, CountryData>();
 
     // Create a copy of all movies to avoid mutating the original
@@ -128,10 +131,10 @@ export default function Home() {
       console.warn(
         "No movies found after applying edits, returning original data"
       );
-      return originalData;
+      return { countryData: originalData, updatedMovies: moviesCopy };
     }
 
-    return newData;
+    return { countryData: newData, updatedMovies: moviesCopy };
   };
 
   useEffect(() => {
@@ -231,18 +234,19 @@ export default function Home() {
       return;
     }
 
-    const updatedCountryData = applyEditsToData(
+    const { countryData: updatedCountryData, updatedMovies } = applyEditsToData(
       countryData || new Map(),
       edits,
       allMovies
     );
 
     setCountryData(updatedCountryData);
+    setAllMovies(updatedMovies);
     setEditingMovie(null);
 
     // Update storage with the updated country data
     DataStorage.saveData({
-      movies: allMovies,
+      movies: updatedMovies,
       countryData: updatedCountryData,
       lastUpdated: new Date().toISOString(),
       originalFileName: fileName,
@@ -253,12 +257,12 @@ export default function Home() {
     DataStorage.saveCustomMovie(movie);
 
     // Add to current movies and rebuild country data
-    const updatedMovies = [...allMovies, movie];
+    const moviesWithNew = [...allMovies, movie];
     const edits = DataStorage.loadEdits();
-    const updatedCountryData = applyEditsToData(
+    const { countryData: updatedCountryData, updatedMovies } = applyEditsToData(
       countryData || new Map(),
       edits,
-      updatedMovies
+      moviesWithNew
     );
 
     setAllMovies(updatedMovies);
@@ -331,19 +335,19 @@ export default function Home() {
 
       // Apply any edits
       const edits = DataStorage.loadEdits();
-      const finalCountryData = applyEditsToData(
+      const { countryData: finalCountryData, updatedMovies } = applyEditsToData(
         newCountryData,
         edits,
         storedData.movies
       );
 
       setCountryData(finalCountryData);
-      setAllMovies(storedData.movies);
+      setAllMovies(updatedMovies);
       setHasUploadedFile(true);
 
       // Save the recovered data
       DataStorage.saveData({
-        movies: storedData.movies,
+        movies: updatedMovies,
         countryData: finalCountryData,
         lastUpdated: new Date().toISOString(),
         originalFileName: storedData.originalFileName || "",

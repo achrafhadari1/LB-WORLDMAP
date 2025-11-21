@@ -39,12 +39,22 @@ export default function FileUpload({
           throw new Error(`Invalid year in row ${index + 1}: ${row.Year}`);
         }
 
-        return {
+        const movieData: any = {
           date: row.Date || "",
           name: row.Name || "",
           year: year,
           letterboxdUri: row["Letterboxd URI"] || "",
         };
+
+        // If Production Countries column exists, include it
+        if (row["Production Countries"]) {
+          movieData.productionCountries = row["Production Countries"]
+            .split(";")
+            .map((country: string) => country.trim())
+            .filter((country: string) => country.length > 0);
+        }
+
+        return movieData;
       })
       .filter((movie) => movie.name.trim() !== ""); // Filter out empty movie names
   };
