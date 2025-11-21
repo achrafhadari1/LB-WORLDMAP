@@ -5,174 +5,45 @@ import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { scaleLinear } from "d3-scale";
 import { CountryData, ProcessedMovieData } from "@/services/dataProcessor";
 import MovieDrawer from "./MovieDrawer";
+import countriesData from "../data/countries.json";
 
 // World map TopoJSON
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-/**
- * Universal mapping: TopoJSON country names → ISO 3166-1 alpha-2 codes.
- * Matches every country from the world-atlas dataset.
- */
-const COUNTRY_NAME_TO_ISO: Record<string, string> = {
-  Afghanistan: "AF",
-  Albania: "AL",
-  Algeria: "DZ",
-  Angola: "AO",
-  Argentina: "AR",
-  Armenia: "AM",
-  Australia: "AU",
-  Austria: "AT",
-  Azerbaijan: "AZ",
-  Bahamas: "BS",
-  Bangladesh: "BD",
-  Belarus: "BY",
-  Belgium: "BE",
-  Belize: "BZ",
-  Benin: "BJ",
-  Bhutan: "BT",
-  Bolivia: "BO",
-  "Bosnia and Herzegovina": "BA",
-  Botswana: "BW",
-  Brazil: "BR",
-  Brunei: "BN",
-  Bulgaria: "BG",
-  "Burkina Faso": "BF",
-  Burundi: "BI",
-  Cambodia: "KH",
-  Cameroon: "CM",
-  Canada: "CA",
-  "Central African Republic": "CF",
-  Chad: "TD",
-  Chile: "CL",
-  China: "CN",
-  Colombia: "CO",
-  "Costa Rica": "CR",
-  Croatia: "HR",
-  Cuba: "CU",
-  Cyprus: "CY",
-  Czechia: "CZ",
-  Denmark: "DK",
-  Djibouti: "DJ",
-  "Dominican Republic": "DO",
-  Ecuador: "EC",
-  Egypt: "EG",
-  "El Salvador": "SV",
-  "Equatorial Guinea": "GQ",
-  Eritrea: "ER",
-  Estonia: "EE",
-  Eswatini: "SZ",
-  Ethiopia: "ET",
-  Finland: "FI",
-  France: "FR",
-  Gabon: "GA",
-  Gambia: "GM",
-  Georgia: "GE",
-  Germany: "DE",
-  Ghana: "GH",
-  Greece: "GR",
-  Guatemala: "GT",
-  Guinea: "GN",
-  "Guinea-Bissau": "GW",
-  Guyana: "GY",
-  Haiti: "HT",
-  Honduras: "HN",
-  Hungary: "HU",
-  Iceland: "IS",
-  India: "IN",
-  Indonesia: "ID",
-  Iran: "IR",
-  Iraq: "IQ",
-  Ireland: "IE",
-  Israel: "IL",
-  Italy: "IT",
-  Jamaica: "JM",
-  Japan: "JP",
-  Jordan: "JO",
-  Kazakhstan: "KZ",
-  Kenya: "KE",
-  Kuwait: "KW",
-  Kyrgyzstan: "KG",
-  Laos: "LA",
-  Latvia: "LV",
-  Lebanon: "LB",
-  Lesotho: "LS",
-  Liberia: "LR",
-  Libya: "LY",
-  Lithuania: "LT",
-  Luxembourg: "LU",
-  Madagascar: "MG",
-  Malawi: "MW",
-  Malaysia: "MY",
-  Mali: "ML",
-  Mauritania: "MR",
-  Mexico: "MX",
-  Moldova: "MD",
-  Mongolia: "MN",
-  Montenegro: "ME",
-  Morocco: "MA",
-  Mozambique: "MZ",
-  Myanmar: "MM",
-  Namibia: "NA",
-  Nepal: "NP",
-  Netherlands: "NL",
-  "New Zealand": "NZ",
-  Nicaragua: "NI",
-  Niger: "NE",
-  Nigeria: "NG",
-  "North Korea": "KP",
-  "North Macedonia": "MK",
-  Norway: "NO",
-  Oman: "OM",
-  Pakistan: "PK",
-  Panama: "PA",
-  "Papua New Guinea": "PG",
-  Paraguay: "PY",
-  Peru: "PE",
-  Philippines: "PH",
-  Poland: "PL",
-  Portugal: "PT",
-  Qatar: "QA",
-  Romania: "RO",
-  Russia: "RU",
-  Rwanda: "RW",
-  "Saudi Arabia": "SA",
-  Senegal: "SN",
-  Serbia: "RS",
-  "Sierra Leone": "SL",
-  Singapore: "SG",
-  Slovakia: "SK",
-  Slovenia: "SI",
-  Somalia: "SO",
-  "South Africa": "ZA",
-  "South Sudan": "SS",
-  Spain: "ES",
-  "Sri Lanka": "LK",
-  Sudan: "SD",
-  Suriname: "SR",
-  Sweden: "SE",
-  Switzerland: "CH",
-  Syria: "SY",
-  Taiwan: "TW",
-  Tajikistan: "TJ",
-  Tanzania: "TZ",
-  Thailand: "TH",
-  Togo: "TG",
-  Tunisia: "TN",
-  Turkey: "TR",
-  Turkmenistan: "TM",
-  Uganda: "UG",
-  Ukraine: "UA",
-  "United Arab Emirates": "AE",
-  "United Kingdom": "GB",
-  "United States of America": "US",
-  Uruguay: "UY",
-  Uzbekistan: "UZ",
-  Venezuela: "VE",
-  Vietnam: "VN",
-  Yemen: "YE",
-  Zambia: "ZM",
-  Zimbabwe: "ZW",
+// Create a mapping from country names to ISO codes using the JSON data
+const createCountryMapping = () => {
+  const mapping: Record<string, string> = {};
+
+  // First, create direct mappings from the JSON data
+  countriesData.forEach((country) => {
+    mapping[country.name] = country.code;
+  });
+
+  // Handle special cases where TopoJSON names differ from standard names
+  const specialMappings: Record<string, string> = {
+    "United States of America": "US", // TopoJSON uses full name
+    "South Korea": "KR", // TopoJSON might use this instead of "Korea, Republic of"
+    "North Korea": "KP", // TopoJSON might use this instead of "Korea, Democratic People's Republic of"
+    "Czech Republic": "CZ", // Some maps use this instead of "Czechia"
+    "Republic of the Congo": "CG", // Distinguish from Democratic Republic
+    "Democratic Republic of the Congo": "CD",
+    "Ivory Coast": "CI", // Alternative name for Côte d'Ivoire
+    "Cape Verde": "CV", // Alternative name for Cabo Verde
+    "East Timor": "TL", // Alternative name for Timor-Leste
+    Swaziland: "SZ", // Former name of Eswatini
+    Macedonia: "MK", // Former name of North Macedonia
+    Burma: "MM", // Former name of Myanmar
+  };
+
+  // Add special mappings
+  Object.entries(specialMappings).forEach(([name, code]) => {
+    mapping[name] = code;
+  });
+
+  return mapping;
 };
+
+const COUNTRY_NAME_TO_ISO = createCountryMapping();
 
 interface HoverData {
   country: string;
@@ -183,7 +54,7 @@ interface HoverData {
 
 interface DrawerData {
   country: string;
-  movies: ProcessedMovieData[];
+  countryIso: string;
 }
 
 interface WorldMapProps {
@@ -250,15 +121,20 @@ export default function WorldMap({
     // Open drawer with movies
     setDrawerData({
       country: name,
-      movies: info.movies,
+      countryIso: iso,
     });
   };
 
   return (
     <div className="relative w-full h-screen bg-gray-900">
-      <div className="absolute top-8 left-8 text-white z-10">
-        <h1 className="text-4xl font-bold mb-2">World Map</h1>
-        <p className="text-gray-300">
+      <div
+        className="absolute text-white z-10"
+        style={{ top: "0.3rem", left: "2rem" }}
+      >
+        <h1 className="text-2xl xl:text-4xl font-bold mb-1 xl:mb-2">
+          World Map
+        </h1>
+        <p className="text-gray-300 text-xs xl:text-base">
           Movies watched by primary production country • Click a country to view
           movies
         </p>
@@ -318,14 +194,16 @@ export default function WorldMap({
       )}
 
       {/* Movie drawer */}
-      <MovieDrawer
-        isOpen={!!drawerData}
-        onClose={() => setDrawerData(null)}
-        country={drawerData?.country || ""}
-        movies={drawerData?.movies || []}
-        onEditMovie={onEditMovie}
-        isEditMode={isEditMode}
-      />
+      {drawerData && countryData && countryData.get(drawerData.countryIso) && (
+        <MovieDrawer
+          isOpen={true}
+          onClose={() => setDrawerData(null)}
+          country={drawerData.country}
+          movies={countryData.get(drawerData.countryIso)?.movies || []}
+          onEditMovie={onEditMovie}
+          isEditMode={isEditMode}
+        />
+      )}
     </div>
   );
 }

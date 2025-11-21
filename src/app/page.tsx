@@ -278,6 +278,45 @@ export default function Home() {
     });
   };
 
+  const handleDeleteMovie = (movie: ProcessedMovieData) => {
+    // Remove movie from allMovies array
+    const updatedMovies = allMovies.filter(
+      (m) => !(m.name === movie.name && m.year === movie.year)
+    );
+
+    // Remove any edits for this movie
+    const movieId = `${movie.name}-${movie.year}`;
+    const edits = DataStorage.loadEdits().filter(
+      (edit) => edit.movieId !== movieId
+    );
+    localStorage.setItem("lb-worldmap-edits", JSON.stringify(edits));
+
+    // Remove from custom movies if it's a custom movie
+    const customMovies = DataStorage.loadCustomMovies().filter(
+      (m) => !(m.name === movie.name && m.year === movie.year)
+    );
+    localStorage.setItem(
+      "lb-worldmap-custom-movies",
+      JSON.stringify(customMovies)
+    );
+
+    // Rebuild country data
+    const { countryData: updatedCountryData, updatedMovies: finalMovies } =
+      applyEditsToData(new Map(), edits, updatedMovies);
+
+    setAllMovies(finalMovies);
+    setCountryData(updatedCountryData);
+    setEditingMovie(null);
+
+    // Update storage
+    DataStorage.saveData({
+      movies: finalMovies,
+      countryData: updatedCountryData,
+      lastUpdated: new Date().toISOString(),
+      originalFileName: fileName,
+    });
+  };
+
   const handleExportCSV = () => {
     const csv = DataStorage.exportAsCSV(allMovies);
     const blob = new Blob([csv], { type: "text/csv" });
@@ -473,24 +512,36 @@ export default function Home() {
   if (isLoading) {
     return (
       <main className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-white mb-2">
-            {progress ? `Processing ${progress.currentMovie}...` : "Loading..."}
+        <div className="text-center max-w-lg w-full px-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-6"></div>
+
+          <h1 className="text-2xl font-bold text-white mb-6">
+            Processing Movies...
           </h1>
+
           {progress && (
-            <div className="max-w-md mx-auto">
-              <div className="bg-gray-700 rounded-full h-2 mb-2">
-                <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{
-                    width: `${(progress.processed / progress.total) * 100}%`,
-                  }}
-                ></div>
+            <div className="space-y-4">
+              {/* Fixed-width progress bar */}
+              <div className="w-full">
+                <div className="bg-gray-700 rounded-full h-3 mb-2">
+                  <div
+                    className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(progress.processed / progress.total) * 100}%`,
+                    }}
+                  ></div>
+                </div>
+                <p className="text-gray-300 text-sm mb-4">
+                  {progress.processed} / {progress.total} movies processed
+                </p>
               </div>
-              <p className="text-gray-300 text-sm">
-                {progress.processed} / {progress.total} movies processed
-              </p>
+
+              {/* Current movie title in separate fixed-height area */}
+              <div className="bg-gray-800 rounded-lg p-4 min-h-[60px] flex items-center justify-center">
+                <p className="text-white text-sm font-medium truncate max-w-full">
+                  Currently processing: {progress.currentMovie}
+                </p>
+              </div>
             </div>
           )}
         </div>
@@ -573,6 +624,7 @@ export default function Home() {
           movie={editingMovie}
           onSave={handleSaveMovieEdit}
           onCancel={() => setEditingMovie(null)}
+          onDelete={handleDeleteMovie}
         />
       )}
 

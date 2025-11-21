@@ -3,11 +3,13 @@
 import React, { useState, useEffect } from "react";
 import { ProcessedMovieData } from "@/services/dataProcessor";
 import countriesData from "@/data/countries.json";
+import { MdDelete } from "react-icons/md";
 
 interface MovieEditorProps {
   movie: ProcessedMovieData;
   onSave: (movie: ProcessedMovieData, newCountry: string) => void;
   onCancel: () => void;
+  onDelete?: (movie: ProcessedMovieData) => void;
 }
 
 interface Country {
@@ -21,6 +23,7 @@ export default function MovieEditor({
   movie,
   onSave,
   onCancel,
+  onDelete,
 }: MovieEditorProps) {
   const [selectedCountry, setSelectedCountry] = useState(
     movie.productionCountries[0] || ""
@@ -42,6 +45,17 @@ export default function MovieEditor({
     }
   };
 
+  const handleDelete = () => {
+    if (
+      onDelete &&
+      confirm(
+        `Are you sure you want to delete "${movie.name}" (${movie.year})?`
+      )
+    ) {
+      onDelete(movie);
+    }
+  };
+
   const currentCountryName = ALL_COUNTRIES.find(
     (c) => c.code === selectedCountry
   )?.name;
@@ -53,24 +67,35 @@ export default function MovieEditor({
         <div className="p-4 border-b border-gray-700">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold text-white">Edit Movie</h2>
-            <button
-              onClick={onCancel}
-              className="text-gray-400 hover:text-white transition-colors p-1"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex items-center gap-2">
+              {onDelete && (
+                <button
+                  onClick={handleDelete}
+                  className="text-red-400 hover:text-red-300 transition-colors p-1"
+                  title="Delete movie"
+                >
+                  <MdDelete className="w-5 h-5" />
+                </button>
+              )}
+              <button
+                onClick={onCancel}
+                className="text-gray-400 hover:text-white transition-colors p-1"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="text-gray-300 text-sm">
             <div className="font-medium">{movie.name}</div>
