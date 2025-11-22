@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import WorldMap from "@/components/WorldMap";
 import MovieEditor from "@/components/MovieEditor";
 import AddMovieModal from "@/components/AddMovieModal";
@@ -10,7 +10,9 @@ import { MdDelete } from "react-icons/md";
 import { MdOutlineSaveAlt } from "react-icons/md";
 import { MdDone } from "react-icons/md";
 import { MdOutlineFileUpload } from "react-icons/md";
+import { MdExplore } from "react-icons/md";
 import FileUpload from "@/components/FileUpload";
+import UnexploredCountries from "@/components/UnexploredCountries";
 import {
   DataProcessor,
   CountryData,
@@ -35,7 +37,29 @@ export default function Home() {
     null
   );
   const [showAddMovie, setShowAddMovie] = useState(false);
+  const [showUnexploredCountries, setShowUnexploredCountries] = useState(false);
   const [fileName, setFileName] = useState<string>("");
+
+  // Calculate exploration stats
+  const explorationStats = useMemo(() => {
+    if (!countryData) return null;
+
+    // We'll get the exact count from the countries.json file
+    // For now, using a reasonable approximation
+    const totalCountries = 249; // Total countries in our countries.json
+    const exploredCount = countryData.size;
+    const unexploredCount = totalCountries - exploredCount;
+    const explorationPercentage = Math.round(
+      (exploredCount / totalCountries) * 100
+    );
+
+    return {
+      totalCountries,
+      exploredCount,
+      unexploredCount,
+      explorationPercentage,
+    };
+  }, [countryData]);
 
   const processMoviesData = async (movies: MovieData[], fileName: string) => {
     try {
@@ -554,7 +578,17 @@ export default function Home() {
       {/* Minimalistic header */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-lg px-3 py-2 text-white text-sm">
-          {fileName || "Default Data"} • {allMovies.length} movies
+          <div className="flex items-center gap-3">
+            <span>
+              {fileName || "Default Data"} • {allMovies.length} movies
+            </span>
+            {countryData && explorationStats && (
+              <span className="text-green-400">
+                {explorationStats.exploredCount} countries explored (
+                {explorationStats.explorationPercentage}%)
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-lg p-1 flex items-center gap-1">
@@ -576,6 +610,27 @@ export default function Home() {
             title="Add movie"
           >
             <MdAddCircle />
+          </button>
+
+          <button
+            onClick={() => setShowUnexploredCountries(true)}
+            className={`px-3 py-1.5 rounded text-sm transition-colors flex items-center gap-1 ${
+              explorationStats && explorationStats.unexploredCount > 100
+                ? "text-orange-400 hover:text-orange-300 hover:bg-orange-900/20"
+                : "text-gray-300 hover:text-white hover:bg-gray-700"
+            }`}
+            title={`View unexplored countries${
+              explorationStats
+                ? ` (${explorationStats.unexploredCount} remaining)`
+                : ""
+            }`}
+          >
+            <MdExplore />
+            {explorationStats && explorationStats.unexploredCount > 0 && (
+              <span className="text-xs">
+                {explorationStats.unexploredCount}
+              </span>
+            )}
           </button>
 
           <button
@@ -635,6 +690,13 @@ export default function Home() {
           onCancel={() => setShowAddMovie(false)}
         />
       )}
+
+      {/* Unexplored Countries Modal */}
+      <UnexploredCountries
+        countryData={countryData}
+        isVisible={showUnexploredCountries}
+        onClose={() => setShowUnexploredCountries(false)}
+      />
     </main>
   );
 }
